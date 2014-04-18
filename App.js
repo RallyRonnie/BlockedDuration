@@ -6,10 +6,10 @@ Ext.define('CustomApp', {
 	launch: function() {
 		app = this;
 		app.iid = null;
-		app.names = new Array();
-		app.ids = new Array();
-		app.oids = new Array();
-		app.owners = new Array();
+		app.names = [];
+		app.ids = [];
+		app.oids = [];
+		app.owners = [];
 		
 //		app.gridStore = Ext.create('Ext.data.Store', {
 //			storeId:'gridStore',
@@ -47,7 +47,7 @@ Ext.define('CustomApp', {
 						app.getSnapshots();
 					}
 				}    
-			}],
+			}]
 		});
 		app.add(ipicker);
 	},
@@ -58,7 +58,7 @@ Ext.define('CustomApp', {
 				load: function(store, data, success) {
 					//process data
 					console.log(data);
-					names = ids = iods = owners = null;
+					app.names = [];	app.ids = []; app.oids = []; app.owners = [];
 					Ext.Array.each(data, function(myitem) {
 						console.log(myitem.get('FormattedID'));
 						app.ids.push(myitem.get('FormattedID'));
@@ -107,10 +107,10 @@ Ext.define('CustomApp', {
         app.drawGrid(results);
     },
     drawGrid: function( data ) {
-    	var hticks = 0.0;
+		var hticks = 0.0;
 		if (app.mytable) {
 			app.mytable.destroy();
-		}   	
+		}
 		app.mytable = Ext.create('Ext.panel.Panel', {
 			title: 'Story Block Durations',
 			layout: {
@@ -135,7 +135,7 @@ Ext.define('CustomApp', {
 //		table.addRows(results.theItems);
 		Ext.Array.each(data, function(child) {
 			var aindex = app.oids.indexOf(child.ObjectID);
-			hticks = child.ticks/60 // conver minutes to hours
+			hticks = child.ticks/60;	// conver minutes to hours
 			app.mytable.add([{html: " " + app.ids[aindex] },{html: "" + app.names[aindex] },{html: "" + app.owners[aindex]},{html: " " + hticks.toFixed(2) }]);
 //			console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
 		});

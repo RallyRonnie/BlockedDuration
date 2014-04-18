@@ -17,46 +17,81 @@ Ext.define('CustomApp', {
             
 	launch: function() {
 		app = this;
-		var filters = [], timeboxScope = this.getContext().getTimeboxScope();
-		if(timeboxScope) {
-console.log(timeboxScope.ObjectID);
-			filters.push(timeboxScope.getQueryFilter());
-		}
-//		console.log('Running...');
-		app.getSnapshots();
+		app.iid = null;
+		app.names = [];
+		app.ids = [];
+		app.oids = [];
+		app.owners = [];
+		
+//		app.gridStore = Ext.create('Ext.data.Store', {
+//			storeId:'gridStore',
+//			fields:['fid', 'name', 'owner', 'ticks'],
+//			proxy: {
+//				type: 'memory',
+//				reader: {
+//					type: 'json',
+//					root: 'items'
+//				}
+//			}
+//		});
+//
+		var ipicker = Ext.create('Ext.Container', {
+			items: [{
+				xtype: 'rallyiterationcombobox',
+				fieldLabel: 'Choose Iteration',
+				storeConfig: {
+					listeners: {
+						load: function(store, records){
+//							console.log(records);
+						}
+					}
+				},
+				listeners: {
+					select: function(combobox) {
+//						console.log(combobox.getRecord().get("StartDate"));
+//						console.log(combobox.getRecord().get("EndDate"));
+//						console.log(combobox.getRecord().get("ObjectID"));
+						app.iid = combobox.getRecord().get("ObjectID");
+						app.getSnapshots();
+					},
+					ready: function(combobox) {
+						app.iid = combobox.getRecord().get("ObjectID");
+						app.getSnapshots();
+					}
+				}    
+			}]
+		});
+		app.add(ipicker);
 	},
 
 	getSnapshots: function() {
-		var mystore = Ext.create('Rally.data.lookback.SnapshotStore', {
+		app.mystore = Ext.create('Rally.data.lookback.SnapshotStore', {
 			listeners: {
 				load: function(store, data, success) {
 					//process data
 					console.log(data);
+					app.names = [];	app.ids = []; app.oids = []; app.owners = [];
 					Ext.Array.each(data, function(myitem) {
-						console.log(myitem.get('Name'));
-					});    
+						console.log(myitem.get('FormattedID'));
+						app.ids.push(myitem.get('FormattedID'));
+						app.oids.push(myitem.get('ObjectID'));
+						app.names.push(myitem.get('Name'));
+						app.owners.push(myitem.get('Owner'));
+					});
+					console.log(app.owners); 
 					app.calcBlockedTime(data); 
 				}
 			},
-			fetch: ['Name', "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
+			fetch: ["FormattedID", "Name", "Owner", "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
+			hydrate: ["Owner"],
 			autoLoad: true,
 			find: {
 				"_ProjectHierarchy" : { "$in": [app.getContext().getProject().ObjectID] },
-				"_TypeHierarchy": { "$in": ["HierarchicalRequirement"] },
-				"Iteration" : 18350122780,
+				"_TypeHierarchy": { "$in": ["HierarchicalRequirement","Defect"] },
+				"Iteration" : app.iid,
 				"Blocked": true
 			}
 		});
-//		console.log('Done');
-	},
-	onTimeboxScopeChange: function(newTimeboxScope) {
-		this.callParent(arguments);
-		this.grid.refresh({
-			filters: [
-				newTimeboxScope.getQueryFilter()
-			]
-		});
-//	console.log('Filter: ' + newTimeboxScope.getQueryFilter());
 	},
 	calcBlockedTime : function( blockedSnapshots ) {
         var that = this;
@@ -67,6 +102,8 @@ console.log(timeboxScope.ObjectID);
         var config = { //  # default work days and holidays
             granularity: granularity,
             tz: tz,
+			workDayStartOn: {hour: 8, minute: 0},
+			workDayEndBefore: {hour: 17, minute: 0},
             validFromField: '_ValidFrom',
             validToField: '_ValidTo',
             uniqueIDField: 'ObjectID'
@@ -78,27 +115,58 @@ console.log(timeboxScope.ObjectID);
         tisc = new window.parent._lumenize.TimeInStateCalculator(config);
         tisc.addSnapshots(snapshots, start, end);
         var results = tisc.getResults();
-        console.log(results);
+//        console.log(results);
         app.drawGrid(results);
-//        callback(null,results);
     },
     drawGrid: function( data ) {
-    	var store = Ext.create('Ext.data.Store', {
-			storeId:'resultsStore',
-			fields:['ObjectID', 'ticks'],
-//			data: data,
-			proxy: {
-				type: 'memory'
-			}
+		var hticks = 0.0;
+		if (app.mytable) {
+			app.mytable.destroy();
+		}
+		app.mytable = Ext.create('Ext.panel.Panel', {
+			title: 'Story Block Durations',
+			layout: {
+				type: 'table',
+
+					// The total column count must be specified here
+					columns: 4
+			},
+
+			defaults: {
+				// applied to each contained panel
+				bodyStyle: 'padding:5px'
+			},
+			width: 600,
+			items: [
+				{html: '<B>ID</B>'},
+				{html: '<B>Name</B>'},
+				{html: '<B>Owner</B>'},
+				{html: '<B>Total Duration (Hours)</B>'}
+				]
 		});
+//		table.addRows(results.theItems);
 		Ext.Array.each(data, function(child) {
-//			console.log(child.get('Name')); //Logs the child name
-console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
+			var aindex = app.oids.indexOf(child.ObjectID);
+			hticks = child.ticks/60;	// conver minutes to hours
+			app.mytable.add([{html: " " + app.ids[aindex] },{html: "" + app.names[aindex] },{html: "" + app.owners[aindex]},{html: " " + hticks.toFixed(2) }]);
+//			console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
 		});
-		var grid = Ext.create('Ext.grid.Panel', {
-			selType: 'cellmodel',
-			store: Ext.data.StoreManager.lookup('resultsStore')
-		});
+//		var mygrid = Ext.create('Ext.grid.Panel', {
+//			title: 'Blocked Duration',
+//			store: Ext.data.StoreManager.lookup('gridStore'),
+  //  columns: [
+//        { text: 'ID',  dataIndex: 'fid' },
+//        { text: 'Name', dataIndex: 'name' },
+//        { text: 'Owner', dataIndex: 'owner' },
+//        { text: 'Duration (Hours)', dataIndex: 'ticks' }
+//    ],
+//    height: 200,
+//    width: 800
+//    renderTo: Ext.getBody()
+//		});
+//		app.gridStore.load('{fid: '+child.ObjectID
+		app.add(app.mytable);
+//		app.add(mygrid);
 	}
 
 });
