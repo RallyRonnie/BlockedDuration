@@ -6,9 +6,27 @@ Ext.define('CustomApp', {
 	launch: function() {
 		app = this;
 		app.iid = null;
+		app.names = new Array();
+		app.ids = new Array();
+		app.oids = new Array();
+		app.owners = new Array();
+		
+//		app.gridStore = Ext.create('Ext.data.Store', {
+//			storeId:'gridStore',
+//			fields:['fid', 'name', 'owner', 'ticks'],
+//			proxy: {
+//				type: 'memory',
+//				reader: {
+//					type: 'json',
+//					root: 'items'
+//				}
+//			}
+//		});
+//
 		var ipicker = Ext.create('Ext.Container', {
 			items: [{
 				xtype: 'rallyiterationcombobox',
+				fieldLabel: 'Choose Iteration',
 				storeConfig: {
 					listeners: {
 						load: function(store, records){
@@ -40,17 +58,24 @@ Ext.define('CustomApp', {
 				load: function(store, data, success) {
 					//process data
 					console.log(data);
+					names = ids = iods = owners = null;
 					Ext.Array.each(data, function(myitem) {
-						console.log(myitem.get('Name'));
-					});    
+						console.log(myitem.get('FormattedID'));
+						app.ids.push(myitem.get('FormattedID'));
+						app.oids.push(myitem.get('ObjectID'));
+						app.names.push(myitem.get('Name'));
+						app.owners.push(myitem.get('Owner'));
+					});
+					console.log(app.owners); 
 					app.calcBlockedTime(data); 
 				}
 			},
-			fetch: ["FormattedID", "Name", "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
+			fetch: ["FormattedID", "Name", "Owner", "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
+			hydrate: ["Owner"],
 			autoLoad: true,
 			find: {
 				"_ProjectHierarchy" : { "$in": [app.getContext().getProject().ObjectID] },
-				"_TypeHierarchy": { "$in": ["HierarchicalRequirement"] },
+				"_TypeHierarchy": { "$in": ["HierarchicalRequirement","Defect"] },
 				"Iteration" : app.iid,
 				"Blocked": true
 			}
@@ -65,6 +90,8 @@ Ext.define('CustomApp', {
         var config = { //  # default work days and holidays
             granularity: granularity,
             tz: tz,
+			workDayStartOn: {hour: 8, minute: 0},
+			workDayEndBefore: {hour: 17, minute: 0},
             validFromField: '_ValidFrom',
             validToField: '_ValidTo',
             uniqueIDField: 'ObjectID'
@@ -80,39 +107,54 @@ Ext.define('CustomApp', {
         app.drawGrid(results);
     },
     drawGrid: function( data ) {
-		var mytable = Ext.create('Ext.panel.Panel', {
+    	var hticks = 0.0;
+		if (app.mytable) {
+			app.mytable.destroy();
+		}   	
+		app.mytable = Ext.create('Ext.panel.Panel', {
 			title: 'Story Block Durations',
 			layout: {
 				type: 'table',
+
 					// The total column count must be specified here
-					columns: 2
+					columns: 4
 			},
 
 			defaults: {
 				// applied to each contained panel
-				bodyStyle: 'padding:20px'
-			} //,
-//			items: [{
-//				html: 'Cell A content',
-//				rowspan: 2
-//			},{
-//				html: 'Cell B content',
-//				colspan: 2
-//			},{
-//				html: 'Cell C content',
-//				cellCls: 'highlight'
-//			},{
-//				html: 'Cell D content'
-//			}],
+				bodyStyle: 'padding:5px'
+			},
+			width: 600,
+			items: [
+				{html: '<B>ID</B>'},
+				{html: '<B>Name</B>'},
+				{html: '<B>Owner</B>'},
+				{html: '<B>Total Duration (Hours)</B>'}
+				]
 		});
 //		table.addRows(results.theItems);
-
 		Ext.Array.each(data, function(child) {
-//			var s1 = '{html: ' + child.ObjectID + '}';
-		mytable.add(child.ObjectID + child.ticks);
-			console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
+			var aindex = app.oids.indexOf(child.ObjectID);
+			hticks = child.ticks/60 // conver minutes to hours
+			app.mytable.add([{html: " " + app.ids[aindex] },{html: "" + app.names[aindex] },{html: "" + app.owners[aindex]},{html: " " + hticks.toFixed(2) }]);
+//			console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
 		});
-		app.add(mytable);
+//		var mygrid = Ext.create('Ext.grid.Panel', {
+//			title: 'Blocked Duration',
+//			store: Ext.data.StoreManager.lookup('gridStore'),
+  //  columns: [
+//        { text: 'ID',  dataIndex: 'fid' },
+//        { text: 'Name', dataIndex: 'name' },
+//        { text: 'Owner', dataIndex: 'owner' },
+//        { text: 'Duration (Hours)', dataIndex: 'ticks' }
+//    ],
+//    height: 200,
+//    width: 800
+//    renderTo: Ext.getBody()
+//		});
+//		app.gridStore.load('{fid: '+child.ObjectID
+		app.add(app.mytable);
+//		app.add(mygrid);
 	}
 
 });
