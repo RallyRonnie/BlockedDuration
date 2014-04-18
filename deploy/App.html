@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlockedDuration</title>
+
+    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
+    <script type="text/javascript" src="https://storage.googleapis.com/versions.lumenize.com/v0.7.2/Lumenize-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.3.1/moment.min.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                var app=null;Ext.define("CustomApp",{extend:"Rally.app.App",componentCls:"app",launch:function(){app=this;var filters=[],timeboxScope=this.getContext().getTimeboxScope();timeboxScope&&(console.log(timeboxScope.ObjectID),filters.push(timeboxScope.getQueryFilter())),app.getSnapshots()},getSnapshots:function(){var mystore=Ext.create("Rally.data.lookback.SnapshotStore",{listeners:{load:function(store,data,success){console.log(data),Ext.Array.each(data,function(myitem){console.log(myitem.get("Name"))}),app.calcBlockedTime(data)}},fetch:["Name","_ValidFrom","_ValidTo","ObjectID","Blocked"],autoLoad:!0,find:{_ProjectHierarchy:{$in:[app.getContext().getProject().ObjectID]},_TypeHierarchy:{$in:["HierarchicalRequirement"]},Iteration:18350122780,Blocked:!0}})},onTimeboxScopeChange:function(newTimeboxScope){this.callParent(arguments),this.grid.refresh({filters:[newTimeboxScope.getQueryFilter()]})},calcBlockedTime:function(blockedSnapshots){var that=this,snapshots=_.pluck(blockedSnapshots,function(s){return s.data}),granularity="minute",tz="America/Chicago",config={granularity:granularity,tz:tz,validFromField:"_ValidFrom",validToField:"_ValidTo",uniqueIDField:"ObjectID"},start=moment().dayOfYear(0).toISOString(),end=moment().toISOString();console.log(snapshots),tisc=new window.parent._lumenize.TimeInStateCalculator(config),tisc.addSnapshots(snapshots,start,end);var results=tisc.getResults();console.log(results),app.drawGrid(results)},drawGrid:function(data){var store=Ext.create("Ext.data.Store",{storeId:"resultsStore",fields:["ObjectID","ticks"],proxy:{type:"memory"}});Ext.Array.each(data,function(child){console.log("ID: "+child.ObjectID+" Ticks: "+child.ticks)});var grid=Ext.create("Ext.grid.Panel",{selType:"cellmodel",store:Ext.data.StoreManager.lookup("resultsStore")})}});
+
+            Rally.launchApp('CustomApp', {
+                name:"BlockedDuration",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        .app {
+     /* Add app styles here */
+}
+
+    </style>
+</head>
+<body></body>
+</html>

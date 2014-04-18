@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BlockedDuration</title>
+
+    <script type="text/javascript" src="/apps/2.0rc2/sdk.js"></script>
+    <script type="text/javascript" src="https://rally1.rallydev.com/apps/2.0rc1/lib/analytics/analytics-all.js"></script>
+    <script type="text/javascript" src="https://storage.googleapis.com/versions.lumenize.com/v0.7.2/Lumenize-min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.3.1/moment.min.js"></script>
+
+    <script type="text/javascript">
+        Rally.onReady(function () {
+                var app=null;
+Ext.define('CustomApp', {
+	extend: 'Rally.app.App',
+	componentCls: 'app',
+            
+	launch: function() {
+		app = this;
+		var filters = [], timeboxScope = this.getContext().getTimeboxScope();
+		if(timeboxScope) {
+console.log(timeboxScope.ObjectID);
+			filters.push(timeboxScope.getQueryFilter());
+		}
+//		console.log('Running...');
+		app.getSnapshots();
+	},
+
+	getSnapshots: function() {
+		var mystore = Ext.create('Rally.data.lookback.SnapshotStore', {
+			listeners: {
+				load: function(store, data, success) {
+					//process data
+					console.log(data);
+					Ext.Array.each(data, function(myitem) {
+						console.log(myitem.get('Name'));
+					});    
+					app.calcBlockedTime(data); 
+				}
+			},
+			fetch: ['Name', "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
+			autoLoad: true,
+			find: {
+				"_ProjectHierarchy" : { "$in": [app.getContext().getProject().ObjectID] },
+				"_TypeHierarchy": { "$in": ["HierarchicalRequirement"] },
+				"Iteration" : 18350122780,
+				"Blocked": true
+			}
+		});
+//		console.log('Done');
+	},
+	onTimeboxScopeChange: function(newTimeboxScope) {
+		this.callParent(arguments);
+		this.grid.refresh({
+			filters: [
+				newTimeboxScope.getQueryFilter()
+			]
+		});
+//	console.log('Filter: ' + newTimeboxScope.getQueryFilter());
+	},
+	calcBlockedTime : function( blockedSnapshots ) {
+        var that = this;
+        var snapshots = _.pluck(blockedSnapshots,function(s) { return s.data;});
+        var granularity = 'minute';
+        var tz = 'America/Chicago';
+        
+        var config = { //  # default work days and holidays
+            granularity: granularity,
+            tz: tz,
+            validFromField: '_ValidFrom',
+            validToField: '_ValidTo',
+            uniqueIDField: 'ObjectID'
+        };
+        
+        var start = moment().dayOfYear(0).toISOString();
+        var end =   moment().toISOString();
+        console.log(snapshots);
+        tisc = new window.parent._lumenize.TimeInStateCalculator(config);
+        tisc.addSnapshots(snapshots, start, end);
+        var results = tisc.getResults();
+        console.log(results);
+        app.drawGrid(results);
+//        callback(null,results);
+    },
+    drawGrid: function( data ) {
+    	var store = Ext.create('Ext.data.Store', {
+			storeId:'resultsStore',
+			fields:['ObjectID', 'ticks'],
+//			data: data,
+			proxy: {
+				type: 'memory'
+			}
+		});
+		Ext.Array.each(data, function(child) {
+//			console.log(child.get('Name')); //Logs the child name
+console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
+		});
+		var grid = Ext.create('Ext.grid.Panel', {
+			selType: 'cellmodel',
+			store: Ext.data.StoreManager.lookup('resultsStore')
+		});
+	}
+
+});
+
+
+            Rally.launchApp('CustomApp', {
+                name:"BlockedDuration",
+	            parentRepos:""
+            });
+
+        });
+    </script>
+
+
+    <style type="text/css">
+        .app {
+     /* Add app styles here */
+}
+
+    </style>
+</head>
+<body></body>
+</html>
