@@ -44,6 +44,7 @@ Ext.define('CustomApp', {
 			items: [{
 				xtype: 'rallyiterationcombobox',
 				fieldLabel: 'Choose Iteration',
+				limit: Infinity,
 				storeConfig: {
 					listeners: {
 						load: function(store, records){
@@ -54,10 +55,17 @@ Ext.define('CustomApp', {
 				listeners: {
 					select: function(combobox) {
 						app.iid = combobox.getRecord().get("ObjectID");
+						console.log('processing: ' + combobox.getRecord().get("Name"));
+						if (app.mytable) {
+							app.mytable.destroy();
+						}
+						Ext.getBody().mask('Working...');
 						app.getSnapshots();
 					},
 					ready: function(combobox) {
 						app.iid = combobox.getRecord().get("ObjectID");
+						console.log('processing: ' + combobox.getRecord().get("Name"));
+						Ext.getBody().mask('Working...');
 						app.getSnapshots();
 					}
 				}    
@@ -70,7 +78,6 @@ Ext.define('CustomApp', {
 			listeners: {
 				load: function(sstore, sdata, ssuccess) {
 					//process data
-					var oname = '';
 					app.names = [];	app.ids = []; app.oids = []; app.owners = []; app.displaynames = [];
 					Ext.Array.each(sdata, function(myitem) {
 						app.ids.push(myitem.get('FormattedID'));
@@ -80,12 +87,14 @@ Ext.define('CustomApp', {
 						var urecord = app.userStore.findRecord('ObjectID', myitem.get('Owner'));
 						if (urecord) {
 //							console.log(urecord.get('DisplayName'));
-							app.displaynames.push(urecord.get('DisplayName'));
+							if (urecord.get('DisplayName') != '') {
+								app.displaynames.push(urecord.get('DisplayName'));
+							}else {
+								app.displaynames.push('No Display Name');
+							}
 						} else {
 							app.displaynames.push('User Not Found');
 						}
-						app.displaynames.push(urecord.get('DisplayName'));
-
 					});
 					app.calcBlockedTime(sdata); 
 				}
@@ -98,7 +107,8 @@ Ext.define('CustomApp', {
 				"_TypeHierarchy": { "$in": ["HierarchicalRequirement","Defect"] },
 				"Iteration" : app.iid,
 				"Blocked": true
-			}
+			},
+			sort: { "_ValidTo": -1 }
 		});
 	},
 	calcBlockedTime : function( blockedSnapshots ) {
@@ -116,30 +126,29 @@ Ext.define('CustomApp', {
             validToField: '_ValidTo',
             uniqueIDField: 'ObjectID'
         };
-        
+        Ext.getBody().mask('Working...');
         var start = moment().dayOfYear(0).toISOString();
         var end =   moment().toISOString();
         tisc = new window.parent._lumenize.TimeInStateCalculator(config);
         tisc.addSnapshots(snapshots, start, end);
         var results = tisc.getResults();
         app.drawGrid(results);
+        Ext.getBody().unmask();
     },
     drawGrid: function( data ) {
 		var hticks = 0.0;
-		if (app.mytable) {
-			app.mytable.destroy();
-		}
 		app.mytable = Ext.create('Ext.panel.Panel', {
 			title: 'Story Block Durations',
 			layout: {
 				type: 'table',
-					columns: 4
+				columns: 4
 			},
 			defaults: {
 				// applied to each contained panel
-				bodyStyle: 'padding:5px'
+				bodyStyle: 'padding:5px',
+				autoScroll: true
 			},
-			width: 600,
+//			width: 800,
 			items: [
 				{html: '<B>ID</B>'},
 				{html: '<B>Name</B>'},
@@ -150,7 +159,9 @@ Ext.define('CustomApp', {
 		Ext.Array.each(data, function(child) {
 			var tindex = app.oids.indexOf(child.ObjectID);
 			hticks = child.ticks/60;	// conver minutes to hours
-			app.mytable.add([{html: " " + app.ids[tindex] },{html: " " + app.names[tindex] },{html: " " + app.displaynames[tindex] },{html: " " + hticks.toFixed(2) }]);
+			app.mytable.add([{html: " " + app.ids[tindex] },{html: " " + 
+				app.names[tindex] },{html: " " + app.displaynames[tindex] },{html: " " + 
+				hticks.toFixed(2) }]);
 		});
 		app.add(app.mytable);
 	}
