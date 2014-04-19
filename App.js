@@ -52,7 +52,7 @@ Ext.define('CustomApp', {
 					},
 					ready: function(combobox) {
 						app.iid = combobox.getRecord().get("ObjectID");
-						console.log('processing: ' + combobox.getRecord().get("Name"));
+						console.log('processing Iteration: ' + combobox.getRecord().get("Name"));
 						Ext.getBody().mask('Working...');
 						app.getSnapshots();
 					}
@@ -66,6 +66,7 @@ Ext.define('CustomApp', {
 			listeners: {
 				load: function(sstore, sdata, ssuccess) {
 					//process data
+//					console.log(sdata);
 					app.names = [];	app.ids = []; app.oids = []; app.owners = []; app.displaynames = [];
 					Ext.Array.each(sdata, function(myitem) {
 						app.ids.push(myitem.get('FormattedID'));
@@ -75,7 +76,7 @@ Ext.define('CustomApp', {
 						var urecord = app.userStore.findRecord('ObjectID', myitem.get('Owner'));
 						if (urecord) {
 //							console.log(urecord.get('DisplayName'));
-							if (urecord.get('DisplayName') != '') {
+							if (urecord.get('DisplayName') !== '') {
 								app.displaynames.push(urecord.get('DisplayName'));
 							}else {
 								app.displaynames.push('No Display Name');
@@ -84,6 +85,8 @@ Ext.define('CustomApp', {
 							app.displaynames.push('User Not Found');
 						}
 					});
+//					Ext.getBody().mask('Processing ' + app.mystore.getCount() + ' Snapshots...');
+					console.log('Processing: ' + app.mystore.getCount() + ' Snapshots...');
 					app.calcBlockedTime(sdata); 
 				}
 			},
@@ -96,7 +99,7 @@ Ext.define('CustomApp', {
 				"Iteration" : app.iid,
 				"Blocked": true
 			},
-			sort: { "_ValidTo": -1 }
+			sort: { "_ValidFrom": 1 }
 		});
 	},
 	calcBlockedTime : function( blockedSnapshots ) {
@@ -104,12 +107,18 @@ Ext.define('CustomApp', {
         var snapshots = _.pluck(blockedSnapshots,function(s) { return s.data;});
         var granularity = 'minute';
         var tz = 'America/Chicago';
-        
+        var workdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+        var holidays = [{month: 12, day: 25}, {month: 1, day: 1}, {year: 2014, month: 5, day: 26}];
+        var starttime = {hour: 8, minute: 0};
+        var endtime = {hour: 17, minute: 0};
+       
         var config = { //  # default work days and holidays
             granularity: granularity,
             tz: tz,
-			workDayStartOn: {hour: 8, minute: 0},
-			workDayEndBefore: {hour: 17, minute: 0},
+			workDayStartOn: starttime,
+			workDayEndBefore: endtime,
+			workDays: workdays,
+			holidays: holidays,
             validFromField: '_ValidFrom',
             validToField: '_ValidTo',
             uniqueIDField: 'ObjectID'
