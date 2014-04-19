@@ -10,19 +10,24 @@ Ext.define('CustomApp', {
 		app.ids = [];
 		app.oids = [];
 		app.owners = [];
-		
-//		app.gridStore = Ext.create('Ext.data.Store', {
-//			storeId:'gridStore',
-//			fields:['fid', 'name', 'owner', 'ticks'],
-//			proxy: {
-//				type: 'memory',
-//				reader: {
-//					type: 'json',
-//					root: 'items'
-//				}
-//			}
-//		});
-//
+		app.displaynames = [];
+
+		app.userStore = Ext.create('Rally.data.WsapiDataStore', {
+			model: 'User',
+			fetch: ['DisplayName','ObjectID'],
+			autoLoad: true,
+			limit: Infinity,
+			filters: [
+				{ property: 'disabled', value: false }
+			],
+			listeners: {
+				load: function(ustore, udata) {
+					app.addIPicker();
+				}
+			}
+		}); 
+	},
+	addIPicker: function () {
 		var ipicker = Ext.create('Ext.Container', {
 			items: [{
 				xtype: 'rallyiterationcombobox',
@@ -36,9 +41,6 @@ Ext.define('CustomApp', {
 				},
 				listeners: {
 					select: function(combobox) {
-//						console.log(combobox.getRecord().get("StartDate"));
-//						console.log(combobox.getRecord().get("EndDate"));
-//						console.log(combobox.getRecord().get("ObjectID"));
 						app.iid = combobox.getRecord().get("ObjectID");
 						app.getSnapshots();
 					},
@@ -51,27 +53,33 @@ Ext.define('CustomApp', {
 		});
 		app.add(ipicker);
 	},
-
 	getSnapshots: function() {
 		app.mystore = Ext.create('Rally.data.lookback.SnapshotStore', {
 			listeners: {
-				load: function(store, data, success) {
+				load: function(sstore, sdata, ssuccess) {
 					//process data
-					console.log(data);
-					app.names = [];	app.ids = []; app.oids = []; app.owners = [];
-					Ext.Array.each(data, function(myitem) {
-						console.log(myitem.get('FormattedID'));
+					var oname = '';
+					app.names = [];	app.ids = []; app.oids = []; app.owners = []; app.displaynames = [];
+					Ext.Array.each(sdata, function(myitem) {
 						app.ids.push(myitem.get('FormattedID'));
 						app.oids.push(myitem.get('ObjectID'));
 						app.names.push(myitem.get('Name'));
 						app.owners.push(myitem.get('Owner'));
+						var urecord = app.userStore.findRecord('ObjectID', myitem.get('Owner'));
+						if (urecord) {
+//							console.log(urecord.get('DisplayName'));
+							app.displaynames.push(urecord.get('DisplayName'));
+						} else {
+							app.displaynames.push('User Not Found');
+						}
+						app.displaynames.push(urecord.get('DisplayName'));
+
 					});
-					console.log(app.owners); 
-					app.calcBlockedTime(data); 
+					app.calcBlockedTime(sdata); 
 				}
 			},
 			fetch: ["FormattedID", "Name", "Owner", "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
-			hydrate: ["Owner"],
+//			hydrate: ["Owner"],  // Would be nice if this would hydrate
 			autoLoad: true,
 			find: {
 				"_ProjectHierarchy" : { "$in": [app.getContext().getProject().ObjectID] },
@@ -99,11 +107,9 @@ Ext.define('CustomApp', {
         
         var start = moment().dayOfYear(0).toISOString();
         var end =   moment().toISOString();
-        console.log(snapshots);
         tisc = new window.parent._lumenize.TimeInStateCalculator(config);
         tisc.addSnapshots(snapshots, start, end);
         var results = tisc.getResults();
-//        console.log(results);
         app.drawGrid(results);
     },
     drawGrid: function( data ) {
@@ -115,11 +121,8 @@ Ext.define('CustomApp', {
 			title: 'Story Block Durations',
 			layout: {
 				type: 'table',
-
-					// The total column count must be specified here
 					columns: 4
 			},
-
 			defaults: {
 				// applied to each contained panel
 				bodyStyle: 'padding:5px'
@@ -132,29 +135,12 @@ Ext.define('CustomApp', {
 				{html: '<B>Total Duration (Hours)</B>'}
 				]
 		});
-//		table.addRows(results.theItems);
 		Ext.Array.each(data, function(child) {
-			var aindex = app.oids.indexOf(child.ObjectID);
+			var tindex = app.oids.indexOf(child.ObjectID);
 			hticks = child.ticks/60;	// conver minutes to hours
-			app.mytable.add([{html: " " + app.ids[aindex] },{html: "" + app.names[aindex] },{html: "" + app.owners[aindex]},{html: " " + hticks.toFixed(2) }]);
-//			console.log('ID: ' + child.ObjectID + ' Ticks: ' + child.ticks);
+			app.mytable.add([{html: " " + app.ids[tindex] },{html: " " + app.names[tindex] },{html: " " + app.displaynames[tindex] },{html: " " + hticks.toFixed(2) }]);
 		});
-//		var mygrid = Ext.create('Ext.grid.Panel', {
-//			title: 'Blocked Duration',
-//			store: Ext.data.StoreManager.lookup('gridStore'),
-  //  columns: [
-//        { text: 'ID',  dataIndex: 'fid' },
-//        { text: 'Name', dataIndex: 'name' },
-//        { text: 'Owner', dataIndex: 'owner' },
-//        { text: 'Duration (Hours)', dataIndex: 'ticks' }
-//    ],
-//    height: 200,
-//    width: 800
-//    renderTo: Ext.getBody()
-//		});
-//		app.gridStore.load('{fid: '+child.ObjectID
 		app.add(app.mytable);
-//		app.add(mygrid);
 	}
 
 });
