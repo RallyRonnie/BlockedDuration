@@ -155,8 +155,10 @@ Ext.define('CustomApp', {
 		});
 		Ext.Array.each(data, function(child) {
 			var tindex = app.oids.indexOf(child.ObjectID);
+			var myItemURL = "<div><a href='" + Rally.environment.getServer().getBaseUrl()+
+				'/#/search?keywords=' +app.ids[tindex]+ "' target='_blank'>" +app.ids[tindex] + "</a></div>";
 			hticks = child.ticks/60;	// conver minutes to hours
-			app.mytable.add([{html: " " + app.ids[tindex] },{html: " " + 
+			app.mytable.add([{html: myItemURL },{html: " " + 
 				app.names[tindex] },{html: " " + app.displaynames[tindex] },{html: " " + 
 				hticks.toFixed(2) }]);
 		});
