@@ -2,7 +2,10 @@ BlockedDuration
 =========================
 
 ## Overview
+This APP utilized the new Lookback API and TimeinState calculator to add up all time a story or defect was blocked during the selected Iteration and report the results in a simple table.
+## Screen Shot
 
+![HTML Grid](https://raw.github.com/RallyRonnie/BlockedDuration/master/screenshot.png)
 
 ## License
 
