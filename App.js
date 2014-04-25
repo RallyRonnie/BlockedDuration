@@ -10,6 +10,8 @@ Ext.define('CustomApp', {
 		app.ids = [];
 		app.oids = [];
 		app.owners = [];
+		app.reasons = [];
+		app.estimates = [];
 		app.displaynames = [];
 
 		app.userStore = Ext.create('Rally.data.WsapiDataStore', {
@@ -43,7 +45,7 @@ Ext.define('CustomApp', {
 				listeners: {
 					select: function(combobox) {
 						app.iid = combobox.getRecord().get("ObjectID");
-						console.log('processing: ' + combobox.getRecord().get("Name"));
+//						console.log('processing: ' + combobox.getRecord().get("Name"));
 						if (app.mytable) {
 							app.mytable.destroy();
 						}
@@ -72,6 +74,8 @@ Ext.define('CustomApp', {
 						app.ids.push(myitem.get('FormattedID'));
 						app.oids.push(myitem.get('ObjectID'));
 						app.names.push(myitem.get('Name'));
+						app.reasons.push(myitem.get('BlockedReason'));
+						app.estimates.push(myitem.get('PlanEstimate'));
 						app.owners.push(myitem.get('Owner'));
 						var urecord = app.userStore.findRecord('ObjectID', myitem.get('Owner'));
 						if (urecord) {
@@ -90,7 +94,7 @@ Ext.define('CustomApp', {
 					app.calcBlockedTime(sdata); 
 				}
 			},
-			fetch: ["FormattedID", "Name", "Owner", "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked'],
+			fetch: ["FormattedID", "Name", "Owner", "_ValidFrom", "_ValidTo", "ObjectID", 'Blocked', 'BlockedReason', 'PlanEstimate'],
 //			hydrate: ["Owner"],  // Would be nice if this would hydrate
 			autoLoad: true,
 			find: {
@@ -99,7 +103,7 @@ Ext.define('CustomApp', {
 				"Iteration" : app.iid,
 				"Blocked": true
 			},
-			sort: { "_ValidFrom": 1 }
+			sort: { "_ValidFrom": -1 }
 		});
 	},
 	calcBlockedTime : function( blockedSnapshots ) {
@@ -138,7 +142,7 @@ Ext.define('CustomApp', {
 			title: 'Story Block Durations',
 			layout: {
 				type: 'table',
-				columns: 4
+				columns: 6
 			},
 			defaults: {
 				// applied to each contained panel
@@ -149,6 +153,8 @@ Ext.define('CustomApp', {
 			items: [
 				{html: '<B>ID</B>'},
 				{html: '<B>Name</B>'},
+				{html: '<B>Blocked Reason</B>'},
+				{html: '<B>Plan Estimate</B>'},
 				{html: '<B>Owner</B>'},
 				{html: '<B>Total Duration (Hours)</B>'}
 				]
@@ -158,9 +164,12 @@ Ext.define('CustomApp', {
 			var myItemURL = "<div><a href='" + Rally.environment.getServer().getBaseUrl()+
 				'/#/search?keywords=' +app.ids[tindex]+ "' target='_blank'>" +app.ids[tindex] + "</a></div>";
 			hticks = child.ticks/60;	// conver minutes to hours
-			app.mytable.add([{html: myItemURL },{html: " " + 
-				app.names[tindex] },{html: " " + app.displaynames[tindex] },{html: " " + 
-				hticks.toFixed(2) }]);
+			app.mytable.add([{html: myItemURL },
+				{html: " " + app.names[tindex] },
+				{html: " " + app.reasons[tindex] },
+				{html: " " + app.estimates[tindex] },
+				{html: " " + app.displaynames[tindex] },
+				{html: " " + hticks.toFixed(2) }]);
 		});
 		app.add(app.mytable);
 	}
